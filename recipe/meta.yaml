@@ -46,6 +46,7 @@ requirements:
     - {{ compiler('cxx') }}
     - {{ stdlib('c') }}
     - {{ compiler('cuda') }}                       # [cpu_or_cuda == "cuda"]
+    - git                                          # [cpu_or_cuda == "cuda"]
 
   host:
     - python
@@ -55,16 +56,16 @@ requirements:
     # torchao imports torch at setup.py top level; torch must be present and the
     # build string must match the variant we compile against to avoid ABI mismatch.
     # pytorch 2.11.0 on pkgs/main ships gpu_cuda129_* and gpu_cuda130_* for linux-64.
-    - pytorch 2.11.0=cpu_openblas*                 # [cpu_or_cuda == "cpu" and not linux]
-    - pytorch 2.11.0=cpu_mkl*                      # [cpu_or_cuda == "cpu" and linux]
+    - pytorch 2.11.0=cpu_openblas*                 # [cpu_or_cuda == "cpu" and osx]
+    - pytorch 2.11.0=cpu_mkl*                      # [cpu_or_cuda == "cpu" and (linux or win)]
     - pytorch 2.11.0=gpu_cuda129*                  # [cpu_or_cuda == "cuda" and cuda_compiler_version == "12.9"]
     - pytorch 2.11.0=gpu_cuda130*                  # [cpu_or_cuda == "cuda" and cuda_compiler_version == "13.0"]
-    - libtorch 2.11.0=cpu_openblas*                # [cpu_or_cuda == "cpu" and not linux]
-    - libtorch 2.11.0=cpu_mkl*                     # [cpu_or_cuda == "cpu" and linux]
+    - libtorch 2.11.0=cpu_openblas*                # [cpu_or_cuda == "cpu" and osx]
+    - libtorch 2.11.0=cpu_mkl*                     # [cpu_or_cuda == "cpu" and (linux or win)]
     - libtorch 2.11.0=gpu_cuda129*                 # [cpu_or_cuda == "cuda" and cuda_compiler_version == "12.9"]
     - libtorch 2.11.0=gpu_cuda130*                 # [cpu_or_cuda == "cuda" and cuda_compiler_version == "13.0"]
     # CUDA development headers (linking only; runtime libraries come via pytorch run_exports).
-    - cuda-version =={{ cuda_compiler_version }}   # [cpu_or_cuda == "cuda"]
+    # cuda-version omitted: cuda-cudart-dev already pins it transitively.
     - cuda-driver-dev                              # [cpu_or_cuda == "cuda"]
     - cuda-cudart-dev                              # [cpu_or_cuda == "cuda"]
     - cuda-nvrtc-dev                               # [cpu_or_cuda == "cuda"]
@@ -81,8 +82,8 @@ requirements:
     # torchao/__init__.py checks torch >= 2.11.0 at import; lower versions cause
     # the compiled .so files to be skipped with a warning. Pin >=2.11.0 to cover
     # pytorch 2.11.0 and 2.12.0 (same CUDA 12.9/13.0 ABI family).
-    - pytorch >=2.11.0=cpu_openblas*               # [cpu_or_cuda == "cpu" and not linux]
-    - pytorch >=2.11.0=cpu_mkl*                    # [cpu_or_cuda == "cpu" and linux]
+    - pytorch >=2.11.0=cpu_openblas*               # [cpu_or_cuda == "cpu" and osx]
+    - pytorch >=2.11.0=cpu_mkl*                    # [cpu_or_cuda == "cpu" and (linux or win)]
     - pytorch >=2.11.0=gpu_cuda129*                # [cpu_or_cuda == "cuda" and cuda_compiler_version == "12.9"]
     - pytorch >=2.11.0=gpu_cuda130*                # [cpu_or_cuda == "cuda" and cuda_compiler_version == "13.0"]
     - __cuda                                       # [cpu_or_cuda == "cuda"]

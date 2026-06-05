@@ -1,10 +1,18 @@
 cpu_or_cuda:
   - cpu
   - cuda
+  - cuda
 
 # pytorch 2.11.0 on pkgs/main ships gpu_cuda129_* and gpu_cuda130_* for linux-64.
 # torchao must link against the same CUDA runtime as pytorch, so we override
 # the aggregate CBC default (12.4) to match both available pytorch CUDA variants.
+# zip_keys pairs each entry row-wise: cpu→none, cuda→12.9, cuda→13.0.
+# Without zip_keys, cpu_or_cuda × cuda_compiler_version is a 4-way cross product
+# producing two identical CPU builds with colliding build strings.
 cuda_compiler_version:
-  - 12.9
-  - 13.0
+  - none   # cpu
+  - 12.9   # cuda-12.9
+  - 13.0   # cuda-13.0
+
+zip_keys:
+  - [cpu_or_cuda, cuda_compiler_version]
