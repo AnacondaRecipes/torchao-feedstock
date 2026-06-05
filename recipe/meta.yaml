@@ -1,0 +1,118 @@
+{% set name = "torchao" %}
+{% set version = "0.17.0" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  - url: https://github.com/pytorch/ao/archive/refs/tags/v{{ version }}.tar.gz
+    sha256: d1689d7a07536f11a1e53fb51b54b00e71bce79c56ac14d62851e1aecf5a2b60
+  # CUTLASS v4.1.0 — pinned submodule at torchao v0.17.0 (commit e51efbfe).
+  # GitHub archive does not include submodules; fetch separately and place where
+  # setup.py expects it (third_party/cutlass/). Only used by CUDA builds, but
+  # included unconditionally so check_submodules() finds the directory populated.
+  - url: https://github.com/NVIDIA/cutlass/archive/refs/tags/v4.1.0.tar.gz
+    sha256: 8d4675b11e9e5207e3940eaac0f46db934ada371cbb3627c9fda642d912b6230
+    folder: third_party/cutlass
+
+build:
+  number: 0
+  # CUDA variant: linux-64 only (matches pytorch's CUDA Linux x86_64 support).
+  # CPU variant: linux-64, linux-aarch64, osx-arm64, win-64.
+  # Python 3.10 minimum (upstream py_limited_api cp310).
+  skip: true  # [py<310 or (cpu_or_cuda == "cuda" and not (linux and x86_64))]
+  string: cpu_h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}                                 # [cpu_or_cuda == "cpu"]
+  string: cuda{{ cuda_compiler_version | replace(".", "") }}_h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}  # [cpu_or_cuda == "cuda"]
+  script_env:
+    - cpu_or_cuda={{ cpu_or_cuda }}
+    # Suppress the +git<sha> version suffix — setup.py appends it when
+    # VERSION_SUFFIX is unset and the source tree is not a git repo.
+    - VERSION_SUFFIX=
+  # CUDA *-dev packages carry run_exports that would pin cuda-cudart/libcublas/etc.
+  # into torchao's run deps. pytorch's own run deps already cover the runtime
+  # CUDA libraries, so we suppress the duplicates here (same pattern as xformers).
+  ignore_run_exports_from:                         # [cpu_or_cuda == "cuda"]
+    - cuda-nvrtc-dev                               # [cpu_or_cuda == "cuda"]
+    - cuda-nvtx-dev                                # [cpu_or_cuda == "cuda"]
+    - libcublas-dev                                # [cpu_or_cuda == "cuda"]
+    - libcufft-dev                                 # [cpu_or_cuda == "cuda"]
+    - libcurand-dev                                # [cpu_or_cuda == "cuda"]
+    - libcusolver-dev                              # [cpu_or_cuda == "cuda"]
+    - libcusparse-dev                              # [cpu_or_cuda == "cuda"]
+
+requirements:
+  build:
+    - {{ compiler('cxx') }}
+    - {{ stdlib('c') }}
+    - {{ compiler('cuda') }}                       # [cpu_or_cuda == "cuda"]
+
+  host:
+    - python
+    - pip
+    - setuptools
+    - wheel
+    # torchao imports torch at setup.py top level; torch must be present and the
+    # build string must match the variant we compile against to avoid ABI mismatch.
+    # pytorch 2.11.0 on pkgs/main ships gpu_cuda129_* and gpu_cuda130_* for linux-64.
+    - pytorch 2.11.0=cpu_openblas*                 # [cpu_or_cuda == "cpu" and not linux]
+    - pytorch 2.11.0=cpu_mkl*                      # [cpu_or_cuda == "cpu" and linux]
+    - pytorch 2.11.0=gpu_cuda129*                  # [cpu_or_cuda == "cuda" and cuda_compiler_version == "12.9"]
+    - pytorch 2.11.0=gpu_cuda130*                  # [cpu_or_cuda == "cuda" and cuda_compiler_version == "13.0"]
+    - libtorch 2.11.0=cpu_openblas*                # [cpu_or_cuda == "cpu" and not linux]
+    - libtorch 2.11.0=cpu_mkl*                     # [cpu_or_cuda == "cpu" and linux]
+    - libtorch 2.11.0=gpu_cuda129*                 # [cpu_or_cuda == "cuda" and cuda_compiler_version == "12.9"]
+    - libtorch 2.11.0=gpu_cuda130*                 # [cpu_or_cuda == "cuda" and cuda_compiler_version == "13.0"]
+    # CUDA development headers (linking only; runtime libraries come via pytorch run_exports).
+    - cuda-version =={{ cuda_compiler_version }}   # [cpu_or_cuda == "cuda"]
+    - cuda-driver-dev                              # [cpu_or_cuda == "cuda"]
+    - cuda-cudart-dev                              # [cpu_or_cuda == "cuda"]
+    - cuda-nvrtc-dev                               # [cpu_or_cuda == "cuda"]
+    - cuda-nvtx-dev                                # [cpu_or_cuda == "cuda"]
+    - cuda-nvml-dev                                # [cpu_or_cuda == "cuda"]
+    - libcublas-dev                                # [cpu_or_cuda == "cuda"]
+    - libcufft-dev                                 # [cpu_or_cuda == "cuda"]
+    - libcurand-dev                                # [cpu_or_cuda == "cuda"]
+    - libcusolver-dev                              # [cpu_or_cuda == "cuda"]
+    - libcusparse-dev                              # [cpu_or_cuda == "cuda"]
+
+  run:
+    - python
+    # torchao/__init__.py checks torch >= 2.11.0 at import; lower versions cause
+    # the compiled .so files to be skipped with a warning. Pin >=2.11.0 to cover
+    # pytorch 2.11.0 and 2.12.0 (same CUDA 12.9/13.0 ABI family).
+    - pytorch >=2.11.0=cpu_openblas*               # [cpu_or_cuda == "cpu" and not linux]
+    - pytorch >=2.11.0=cpu_mkl*                    # [cpu_or_cuda == "cpu" and linux]
+    - pytorch >=2.11.0=gpu_cuda129*                # [cpu_or_cuda == "cuda" and cuda_compiler_version == "12.9"]
+    - pytorch >=2.11.0=gpu_cuda130*                # [cpu_or_cuda == "cuda" and cuda_compiler_version == "13.0"]
+    - __cuda                                       # [cpu_or_cuda == "cuda"]
+
+test:
+  requires:
+    - pip
+  imports:
+    - torchao
+    - torchao.quantization
+  commands:
+    - pip check
+
+about:
+  home: https://github.com/pytorch/ao
+  summary: PyTorch-native quantization and optimization library for training and inference
+  description: |
+    TorchAO is an easy-to-use quantization and optimization library built on native
+    PyTorch. It provides quantization (INT8, INT4, FP8), sparsity, and low-bit
+    optimizer support, and works out-of-the-box with torch.compile() and FSDP2.
+    TorchAO is the official PyTorch quantization backend for vLLM, HuggingFace
+    Transformers, and TorchTune.
+  license: BSD-3-Clause
+  license_family: BSD
+  license_file:
+    - LICENSE
+    - third_party/cutlass/LICENSE.txt
+  doc_url: https://docs.pytorch.org/ao/stable/index.html
+  dev_url: https://github.com/pytorch/ao
+
+extra:
+  recipe-maintainers:
+    - xkong-anaconda

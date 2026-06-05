@@ -1,0 +1,10 @@
+cpu_or_cuda:
+  - cpu
+  - cuda
+
+# pytorch 2.11.0 on pkgs/main ships gpu_cuda129_* and gpu_cuda130_* for linux-64.
+# torchao must link against the same CUDA runtime as pytorch, so we override
+# the aggregate CBC default (12.4) to match both available pytorch CUDA variants.
+cuda_compiler_version:
+  - 12.9
+  - 13.0
