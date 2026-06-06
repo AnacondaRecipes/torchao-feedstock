@@ -23,9 +23,25 @@ if [ "${cpu_or_cuda}" = "cuda" ]; then
     # the consumer-side check; the libstdc++ ABI is consistent.
     if [[ "${cuda_compiler_version:0:2}" == "12" ]]; then
         export TORCH_DONT_CHECK_COMPILER_ABI=1
+        # CUTLASS SM90a/SM100a sources (rowwise_scaled_linear_sparse_cutlass_* and
+        # to_sparse_semi_structured_cutlass_sm9x) emit "default arguments are only
+        # permitted for function parameters [-fpermissive]" under CUDA 12.9 nvcc.
+        # Patch setup.py so get_cutlass_build_flags() returns (False, False) for this
+        # build; the main _C extension is unaffected.
+        python3 -c "
+import pathlib
+p = pathlib.Path('setup.py')
+txt = p.read_text()
+txt = txt.replace(
+    'build_for_sm90a, build_for_sm100a = get_cutlass_build_flags()',
+    'build_for_sm90a, build_for_sm100a = False, False  # disabled: nvcc 12.x incompatibility'
+)
+p.write_text(txt)
+print('Patched setup.py: disabled CUTLASS SM90a/SM100a for CUDA 12.x')
+"
     fi
 
-    # CUDA 13.0: the mxfp8 extension (SM 12.0/Blackwell) uses __cudaLaunch which was
+    # CUDA 13.x: the mxfp8 extension (SM 12.0/Blackwell) uses __cudaLaunch which was
     # removed in CUDA 13.0 (renamed to __cudaLaunchKernel). Remove the mxfp8 sources
     # so setup.py skips that extension; the main _C CUDA extension is unaffected.
     if [[ "${cuda_compiler_version:0:2}" == "13" ]]; then
