@@ -21,32 +21,32 @@ build:
   # CUDA variant: linux-64 only (matches pytorch's CUDA Linux x86_64 support).
   # CPU variant: linux-64, linux-aarch64, osx-arm64, win-64.
   # Python 3.10 minimum (upstream py_limited_api cp310).
-  skip: true  # [py<310 or (cpu_or_cuda == "cuda" and not (linux and x86_64))]
-  string: cpu_h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}                                 # [cpu_or_cuda == "cpu"]
-  string: cuda{{ cuda_compiler_version | replace(".", "") }}_h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}  # [cpu_or_cuda == "cuda"]
+  skip: true  # [py<310 or (gpu_variant == "cuda" and not (linux and x86_64))]
+  string: cpu_h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}                                 # [gpu_variant == "cpu"]
+  string: cuda{{ cuda_compiler_version | replace(".", "") }}_h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}  # [gpu_variant == "cuda"]
   script_env:
-    - cpu_or_cuda={{ cpu_or_cuda }}
+    - gpu_variant={{ gpu_variant }}
     # Suppress the +git<sha> version suffix — setup.py appends it when
     # VERSION_SUFFIX is unset and the source tree is not a git repo.
     - VERSION_SUFFIX=
   # CUDA *-dev packages carry run_exports that would pin cuda-cudart/libcublas/etc.
   # into torchao's run deps. pytorch's own run deps already cover the runtime
   # CUDA libraries, so we suppress the duplicates here (same pattern as xformers).
-  ignore_run_exports_from:                         # [cpu_or_cuda == "cuda"]
-    - cuda-nvrtc-dev                               # [cpu_or_cuda == "cuda"]
-    - cuda-nvtx-dev                                # [cpu_or_cuda == "cuda"]
-    - libcublas-dev                                # [cpu_or_cuda == "cuda"]
-    - libcufft-dev                                 # [cpu_or_cuda == "cuda"]
-    - libcurand-dev                                # [cpu_or_cuda == "cuda"]
-    - libcusolver-dev                              # [cpu_or_cuda == "cuda"]
-    - libcusparse-dev                              # [cpu_or_cuda == "cuda"]
+  ignore_run_exports_from:                         # [gpu_variant == "cuda"]
+    - cuda-nvrtc-dev                               # [gpu_variant == "cuda"]
+    - cuda-nvtx-dev                                # [gpu_variant == "cuda"]
+    - libcublas-dev                                # [gpu_variant == "cuda"]
+    - libcufft-dev                                 # [gpu_variant == "cuda"]
+    - libcurand-dev                                # [gpu_variant == "cuda"]
+    - libcusolver-dev                              # [gpu_variant == "cuda"]
+    - libcusparse-dev                              # [gpu_variant == "cuda"]
 
 requirements:
   build:
     - {{ compiler('cxx') }}
     - {{ stdlib('c') }}
-    - {{ compiler('cuda') }}                       # [cpu_or_cuda == "cuda"]
-    - git                                          # [cpu_or_cuda == "cuda"]
+    - {{ compiler('cuda') }}                       # [gpu_variant == "cuda"]
+    - git                                          # [gpu_variant == "cuda"]
 
   host:
     - python
@@ -56,37 +56,37 @@ requirements:
     # torchao imports torch at setup.py top level; torch must be present and the
     # build string must match the variant we compile against to avoid ABI mismatch.
     # pytorch 2.11.0 on pkgs/main ships gpu_cuda129_* and gpu_cuda130_* for linux-64.
-    - pytorch 2.11.0=cpu_openblas*                 # [cpu_or_cuda == "cpu" and (osx or (linux and aarch64))]
-    - pytorch 2.11.0=cpu_mkl*                      # [cpu_or_cuda == "cpu" and (linux and x86_64 or win)]
-    - pytorch 2.11.0=gpu_cuda129*                  # [cpu_or_cuda == "cuda" and cuda_compiler_version == "12.9"]
-    - pytorch 2.11.0=gpu_cuda130*                  # [cpu_or_cuda == "cuda" and cuda_compiler_version == "13.0"]
-    - libtorch 2.11.0=cpu_openblas*                # [cpu_or_cuda == "cpu" and (osx or (linux and aarch64))]
-    - libtorch 2.11.0=cpu_mkl*                     # [cpu_or_cuda == "cpu" and (linux and x86_64 or win)]
-    - libtorch 2.11.0=gpu_cuda129*                 # [cpu_or_cuda == "cuda" and cuda_compiler_version == "12.9"]
-    - libtorch 2.11.0=gpu_cuda130*                 # [cpu_or_cuda == "cuda" and cuda_compiler_version == "13.0"]
+    - pytorch 2.11.0=cpu_openblas*                 # [gpu_variant == "cpu" and (osx or (linux and aarch64))]
+    - pytorch 2.11.0=cpu_mkl*                      # [gpu_variant == "cpu" and (linux and x86_64 or win)]
+    - pytorch 2.11.0=gpu_cuda129*                  # [gpu_variant == "cuda" and cuda_compiler_version == "12.9"]
+    - pytorch 2.11.0=gpu_cuda130*                  # [gpu_variant == "cuda" and cuda_compiler_version == "13.0"]
+    - libtorch 2.11.0=cpu_openblas*                # [gpu_variant == "cpu" and (osx or (linux and aarch64))]
+    - libtorch 2.11.0=cpu_mkl*                     # [gpu_variant == "cpu" and (linux and x86_64 or win)]
+    - libtorch 2.11.0=gpu_cuda129*                 # [gpu_variant == "cuda" and cuda_compiler_version == "12.9"]
+    - libtorch 2.11.0=gpu_cuda130*                 # [gpu_variant == "cuda" and cuda_compiler_version == "13.0"]
     # CUDA development headers (linking only; runtime libraries come via pytorch run_exports).
     # cuda-version omitted: cuda-cudart-dev already pins it transitively.
-    - cuda-driver-dev                              # [cpu_or_cuda == "cuda"]
-    - cuda-cudart-dev                              # [cpu_or_cuda == "cuda"]
-    - cuda-nvrtc-dev                               # [cpu_or_cuda == "cuda"]
-    - cuda-nvtx-dev                                # [cpu_or_cuda == "cuda"]
-    - cuda-nvml-dev                                # [cpu_or_cuda == "cuda"]
-    - libcublas-dev                                # [cpu_or_cuda == "cuda"]
-    - libcufft-dev                                 # [cpu_or_cuda == "cuda"]
-    - libcurand-dev                                # [cpu_or_cuda == "cuda"]
-    - libcusolver-dev                              # [cpu_or_cuda == "cuda"]
-    - libcusparse-dev                              # [cpu_or_cuda == "cuda"]
+    - cuda-driver-dev                              # [gpu_variant == "cuda"]
+    - cuda-cudart-dev                              # [gpu_variant == "cuda"]
+    - cuda-nvrtc-dev                               # [gpu_variant == "cuda"]
+    - cuda-nvtx-dev                                # [gpu_variant == "cuda"]
+    - cuda-nvml-dev                                # [gpu_variant == "cuda"]
+    - libcublas-dev                                # [gpu_variant == "cuda"]
+    - libcufft-dev                                 # [gpu_variant == "cuda"]
+    - libcurand-dev                                # [gpu_variant == "cuda"]
+    - libcusolver-dev                              # [gpu_variant == "cuda"]
+    - libcusparse-dev                              # [gpu_variant == "cuda"]
 
   run:
     - python
     # torchao/__init__.py checks torch >= 2.11.0 at import; lower versions cause
     # the compiled .so files to be skipped with a warning. Pin >=2.11.0 to cover
     # pytorch 2.11.0 and 2.12.0 (same CUDA 12.9/13.0 ABI family).
-    - pytorch >=2.11.0=cpu_openblas*               # [cpu_or_cuda == "cpu" and (osx or (linux and aarch64))]
-    - pytorch >=2.11.0=cpu_mkl*                    # [cpu_or_cuda == "cpu" and (linux and x86_64 or win)]
-    - pytorch >=2.11.0=gpu_cuda129*                # [cpu_or_cuda == "cuda" and cuda_compiler_version == "12.9"]
-    - pytorch >=2.11.0=gpu_cuda130*                # [cpu_or_cuda == "cuda" and cuda_compiler_version == "13.0"]
-    - __cuda                                       # [cpu_or_cuda == "cuda"]
+    - pytorch >=2.11.0=cpu_openblas*               # [gpu_variant == "cpu" and (osx or (linux and aarch64))]
+    - pytorch >=2.11.0=cpu_mkl*                    # [gpu_variant == "cpu" and (linux and x86_64 or win)]
+    - pytorch >=2.11.0=gpu_cuda129*                # [gpu_variant == "cuda" and cuda_compiler_version == "12.9"]
+    - pytorch >=2.11.0=gpu_cuda130*                # [gpu_variant == "cuda" and cuda_compiler_version == "13.0"]
+    - __cuda                                       # [gpu_variant == "cuda"]
 
 test:
   requires:

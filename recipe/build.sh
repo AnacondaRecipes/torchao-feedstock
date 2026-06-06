@@ -11,7 +11,7 @@ export VERSION_SUFFIX=""
 # trigger cmake-based TORCHAO_BUILD_CPU_AARCH64, which is not yet tested.
 export BUILD_TORCHAO_EXPERIMENTAL=0
 
-if [ "${cpu_or_cuda}" = "cuda" ]; then
+if [ "${gpu_variant}" = "cuda" ]; then
     # CUDA build: compile C++/CUDA kernels including CUTLASS SM90a+ paths.
     export USE_CPP=1
 
