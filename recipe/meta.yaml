@@ -1,0 +1,119 @@
+{% set name = "torchao" %}
+{% set version = "0.17.0" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  - url: https://github.com/pytorch/ao/archive/refs/tags/v{{ version }}.tar.gz
+    sha256: d1689d7a07536f11a1e53fb51b54b00e71bce79c56ac14d62851e1aecf5a2b60
+  # CUTLASS v4.1.0 — pinned submodule at torchao v0.17.0 (commit e51efbfe).
+  # GitHub archive does not include submodules; fetch separately and place where
+  # setup.py expects it (third_party/cutlass/). Only used by CUDA builds, but
+  # included unconditionally so check_submodules() finds the directory populated.
+  - url: https://github.com/NVIDIA/cutlass/archive/refs/tags/v4.1.0.tar.gz
+    sha256: 8d4675b11e9e5207e3940eaac0f46db934ada371cbb3627c9fda642d912b6230
+    folder: third_party/cutlass
+
+build:
+  number: 1
+  # CUDA variant: linux-64 only (matches pytorch's CUDA Linux x86_64 support).
+  # CPU variant: linux-64, linux-aarch64, osx-arm64, win-64.
+  # Python 3.10 minimum (upstream py_limited_api cp310).
+  skip: true  # [py<310 or (cuda_compiler_version != "none" and not (linux and x86_64))]
+  string: cpu_h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}                                 # [cuda_compiler_version == "none"]
+  string: cuda{{ cuda_compiler_version | replace(".", "") }}_h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}  # [cuda_compiler_version != "none"]
+  script_env:
+    - cuda_compiler_version={{ cuda_compiler_version }}
+    # Suppress the +git<sha> version suffix — setup.py appends it when
+    # VERSION_SUFFIX is unset and the source tree is not a git repo.
+    - VERSION_SUFFIX=
+  # CUDA *-dev packages carry run_exports that would pin cuda-cudart/libcublas/etc.
+  # into torchao's run deps. pytorch's own run deps already cover the runtime
+  # CUDA libraries, so we suppress the duplicates here (same pattern as xformers).
+  ignore_run_exports_from:                         # [cuda_compiler_version != "none"]
+    - cuda-nvrtc-dev                               # [cuda_compiler_version != "none"]
+    - cuda-nvtx-dev                                # [cuda_compiler_version != "none"]
+    - libcublas-dev                                # [cuda_compiler_version != "none"]
+    - libcufft-dev                                 # [cuda_compiler_version != "none"]
+    - libcurand-dev                                # [cuda_compiler_version != "none"]
+    - libcusolver-dev                              # [cuda_compiler_version != "none"]
+    - libcusparse-dev                              # [cuda_compiler_version != "none"]
+
+requirements:
+  build:
+    - {{ compiler('cxx') }}
+    - {{ stdlib('c') }}
+    - {{ compiler('cuda') }}                       # [cuda_compiler_version != "none"]
+    - git                                          # [cuda_compiler_version != "none"]
+
+  host:
+    - python
+    - pip
+    - setuptools
+    - wheel
+    # torchao imports torch at setup.py top level; torch must be present and the
+    # build string must match the variant we compile against to avoid ABI mismatch.
+    # pytorch 2.12.0 on pkgs/main ships gpu_cuda129_* and gpu_cuda130_* for linux-64.
+    - pytorch 2.12.0=cpu_openblas*                 # [cuda_compiler_version == "none" and (osx or (linux and aarch64))]
+    - pytorch 2.12.0=cpu_mkl*                      # [cuda_compiler_version == "none" and ((linux or win) and x86_64)]
+    - pytorch 2.12.0=gpu_cuda129*                  # [cuda_compiler_version == "12.9"]
+    - pytorch 2.12.0=gpu_cuda130*                  # [cuda_compiler_version == "13.0"]
+    - libtorch 2.12.0=cpu_openblas*                # [cuda_compiler_version == "none" and (osx or (linux and aarch64))]
+    - libtorch 2.12.0=cpu_mkl*                     # [cuda_compiler_version == "none" and ((linux or win) and x86_64)]
+    - libtorch 2.12.0=gpu_cuda129*                 # [cuda_compiler_version == "12.9"]
+    - libtorch 2.12.0=gpu_cuda130*                 # [cuda_compiler_version == "13.0"]
+    # CUDA development headers (linking only; runtime libraries come via pytorch run_exports).
+    # cuda-version pins all CUDA packages (incl. cuda-cccl) to the exact compiler sub-version;
+    # without it cuda-cccl can resolve to a different 13.x sub-version than nvcc, breaking builds.
+    - cuda-version {{ cuda_compiler_version }}     # [cuda_compiler_version != "none"]
+    - cuda-driver-dev                              # [cuda_compiler_version != "none"]
+    - cuda-cudart-dev                              # [cuda_compiler_version != "none"]
+    - cuda-nvrtc-dev                               # [cuda_compiler_version != "none"]
+    - cuda-nvtx-dev                                # [cuda_compiler_version != "none"]
+    - cuda-nvml-dev                                # [cuda_compiler_version != "none"]
+    - libcublas-dev                                # [cuda_compiler_version != "none"]
+    - libcufft-dev                                 # [cuda_compiler_version != "none"]
+    - libcurand-dev                                # [cuda_compiler_version != "none"]
+    - libcusolver-dev                              # [cuda_compiler_version != "none"]
+    - libcusparse-dev                              # [cuda_compiler_version != "none"]
+
+  run:
+    - python
+    # Built against pytorch 2.12.0; pin >=2.12.0 to enforce the compiled ABI.
+    - pytorch >=2.12.0=cpu_openblas*               # [cuda_compiler_version == "none" and (osx or (linux and aarch64))]
+    - pytorch >=2.12.0=cpu_mkl*                    # [cuda_compiler_version == "none" and ((linux or win) and x86_64)]
+    - pytorch >=2.12.0=gpu_cuda129*                # [cuda_compiler_version == "12.9"]
+    - pytorch >=2.12.0=gpu_cuda130*                # [cuda_compiler_version == "13.0"]
+    - __cuda                                       # [cuda_compiler_version != "none"]
+
+test:
+  requires:
+    - pip
+  imports:
+    - torchao
+    - torchao.quantization
+  commands:
+    - pip check
+
+about:
+  home: https://github.com/pytorch/ao
+  summary: PyTorch-native quantization and optimization library for training and inference
+  description: |
+    TorchAO is an easy-to-use quantization and optimization library built on native
+    PyTorch. It provides quantization (INT8, INT4, FP8), sparsity, and low-bit
+    optimizer support, and works out-of-the-box with torch.compile() and FSDP2.
+    TorchAO is the official PyTorch quantization backend for vLLM, HuggingFace
+    Transformers, and TorchTune.
+  license: BSD-3-Clause
+  license_family: BSD
+  license_file:
+    - LICENSE
+    - third_party/cutlass/LICENSE.txt
+  doc_url: https://docs.pytorch.org/ao/stable/index.html
+  dev_url: https://github.com/pytorch/ao
+
+extra:
+  recipe-maintainers:
+    - xkong-anaconda
