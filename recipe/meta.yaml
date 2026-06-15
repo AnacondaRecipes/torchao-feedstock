@@ -57,7 +57,7 @@ requirements:
     # build string must match the variant we compile against to avoid ABI mismatch.
     # pytorch 2.12.0 on pkgs/main ships gpu_cuda129_* and gpu_cuda130_* for linux-64.
     - pytorch 2.12.0=cpu_openblas*                 # [cuda_compiler_version == "none" and (osx or (linux and aarch64))]
-    - pytorch 2.12.0=cpu_mkl*                      # [cuda_compiler_version == "none" and (linux and x86_64 or win)]
+    - pytorch 2.12.0=cpu_mkl*                      # [cuda_compiler_version == "none" and ((linux or win) and x86_64)]
     - pytorch 2.12.0=gpu_cuda129*                  # [cuda_compiler_version == "12.9"]
     - pytorch 2.12.0=gpu_cuda130*                  # [cuda_compiler_version == "13.0"]
     - libtorch 2.12.0=cpu_openblas*                # [cuda_compiler_version == "none" and (osx or (linux and aarch64))]
