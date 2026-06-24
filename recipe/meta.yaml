@@ -17,13 +17,17 @@ source:
     folder: third_party/cutlass
 
 build:
-  number: 1
+  number: 2
   # CUDA variant: linux-64 only (matches pytorch's CUDA Linux x86_64 support).
   # CPU variant: linux-64, linux-aarch64, osx-arm64, win-64.
   # Python 3.10 minimum (upstream py_limited_api cp310).
   skip: true  # [py<310 or (cuda_compiler_version != "none" and not (linux and x86_64))]
-  string: cpu_h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}                                 # [cuda_compiler_version == "none"]
-  string: cuda{{ cuda_compiler_version | replace(".", "") }}_h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}  # [cuda_compiler_version != "none"]
+  # py{{ CONDA_PY }} MUST be in the build string: the package is python-version-specific
+  # (.pyc bytecode tagged cpXY) but a manual `string:` overrides conda-build's default
+  # py-prefix. Without it all 5 Python builds collapse to one filename per variant and
+  # collide on upload — only py3.14 survived in build 1 (PKG-14920).
+  string: cpu_py{{ CONDA_PY }}h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}                                 # [cuda_compiler_version == "none"]
+  string: cuda{{ cuda_compiler_version | replace(".", "") }}_py{{ CONDA_PY }}h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}  # [cuda_compiler_version != "none"]
   script_env:
     - cuda_compiler_version={{ cuda_compiler_version }}
     # Suppress the +git<sha> version suffix — setup.py appends it when
