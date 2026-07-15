@@ -3,7 +3,7 @@ set -euxo pipefail
 
 # Prevent setup.py from appending "+git<sha>" to the version — the source
 # is a GitHub archive (not a git repo) so get_git_commit_id() returns "".
-# Setting VERSION_SUFFIX="" keeps the version as "0.17.0" exactly.
+# Setting VERSION_SUFFIX="" keeps the version as "0.16.0" exactly.
 export VERSION_SUFFIX=""
 
 # Disable macOS/ARM experimental cmake-based CPU kernels for now.
@@ -15,11 +15,16 @@ if [ "${cuda_compiler_version}" != "none" ]; then
     # CUDA build: compile C++/CUDA kernels.
     export USE_CPP=1
 
-    # Match pytorch-feedstock's CUDA arch list for ABI alignment with pkgs/main libtorch.
-    export TORCH_CUDA_ARCH_LIST="7.5;8.0;8.6;9.0;10.0;12.0+PTX"
+    # Match pytorch-feedstock's 2.10 CUDA arch lists for ABI alignment with pkgs/main
+    # libtorch 2.10.0 (sm_70 kept for CUDA 12.x per pytorch/pytorch#157517; dropped in 13).
+    if [[ "${cuda_compiler_version:0:2}" == "12" ]]; then
+        export TORCH_CUDA_ARCH_LIST="7.0;7.5;8.0;8.6;9.0;10.0;12.0+PTX"
+    else
+        export TORCH_CUDA_ARCH_LIST="7.5;8.0;8.6;9.0;10.0;12.0+PTX"
+    fi
 
     # CUDA 12.x requires gcc <14.0 per torch/utils/cpp_extension.py CUDA_GCC_VERSIONS,
-    # but pkgs/main only ships gcc 14.3.0 — same gcc that built pytorch 2.11. Bypass
+    # but pkgs/main only ships gcc 14.3.0 — same gcc that built pytorch 2.10. Bypass
     # the consumer-side check; the libstdc++ ABI is consistent.
     if [[ "${cuda_compiler_version:0:2}" == "12" ]]; then
         export TORCH_DONT_CHECK_COMPILER_ABI=1
@@ -41,16 +46,8 @@ p.write_text(txt)
 print('Patched setup.py: disabled CUTLASS SM90a/SM100a')
 "
 
-    # CUDA 13.x: the mxfp8 extension (SM 12.0/Blackwell) uses __cudaLaunch which was
-    # removed in CUDA 13.0 (renamed to __cudaLaunchKernel). Remove the mxfp8 sources
-    # so setup.py skips that extension; the main _C CUDA extension is unaffected.
-    if [[ "${cuda_compiler_version:0:2}" == "13" ]]; then
-        rm -f torchao/csrc/cuda/mx_kernels/mxfp8_extension.cpp \
-              torchao/csrc/cuda/mx_kernels/mxfp8_cuda.cu \
-              torchao/csrc/cuda/mx_kernels/mx_block_rearrange_2d_M_groups.cu \
-              torchao/csrc/cuda/mx_kernels/fused_pad_token_groups.cu
-        echo "Removed mxfp8 sources: skipping _C_mxfp8 extension for CUDA 13.x"
-    fi
+    # NOTE: the mxfp8-source removal workaround used at 0.17.0 is not needed here —
+    # 0.16.0's mx_kernels do not use __cudaLaunch (removed in CUDA 13.0).
 else
     # CPU build: pure Python mode, no C++ compilation.
     export USE_CPP=0
