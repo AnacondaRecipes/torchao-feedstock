@@ -1,5 +1,8 @@
 {% set name = "torchao" %}
 {% set version = "0.18.0" %}
+# pytorch/libtorch minor to build against. Set here because the aggregate CBC
+# `pytorch` pin still lags; switch to the CBC variable once it catches up.
+{% set torch_version = "2.15" %}
 
 package:
   name: {{ name }}
@@ -17,11 +20,12 @@ source:
     folder: third_party/cutlass
 
 build:
-  number: 1
+  number: 2
   # CUDA variant: linux-64 only (matches pytorch's CUDA Linux x86_64 support).
-  # CPU variant: linux-64, linux-aarch64, osx-arm64, win-64.
-  # Python 3.10 minimum (upstream py_limited_api cp310).
-  skip: true  # [py<310 or (cuda_compiler_version != "none" and not (linux and x86_64))]
+  # CPU variant: linux-64, linux-aarch64, osx-arm64, win-64, win-arm64.
+  # Python 3.11 minimum: pytorch 2.15 requires python >=3.11 (no py3.10 builds on
+  # pkgs/main); torchao itself is py_limited_api cp310.
+  skip: true  # [py<311 or (cuda_compiler_version != "none" and not (linux and x86_64))]
   # py{{ CONDA_PY }} MUST be in the build string: the package is python-version-specific
   # (.pyc bytecode tagged cpXY) but a manual `string:` overrides conda-build's default
   # py-prefix. Without it all 5 Python builds collapse to one filename per variant and
@@ -59,15 +63,16 @@ requirements:
     - wheel
     # torchao imports torch at setup.py top level; torch must be present and the
     # build string must match the variant we compile against to avoid ABI mismatch.
-    # pytorch 2.14.0 on pkgs/main ships gpu_cuda129_* and gpu_cuda130_* for linux-64.
-    - pytorch 2.14.0=cpu_openblas*                 # [cuda_compiler_version == "none" and (osx or (linux and aarch64))]
-    - pytorch 2.14.0=cpu_mkl*                      # [cuda_compiler_version == "none" and ((linux or win) and x86_64)]
-    - pytorch 2.14.0=gpu_cuda129*                  # [cuda_compiler_version == "12.9"]
-    - pytorch 2.14.0=gpu_cuda130*                  # [cuda_compiler_version == "13.0"]
-    - libtorch 2.14.0=cpu_openblas*                # [cuda_compiler_version == "none" and (osx or (linux and aarch64))]
-    - libtorch 2.14.0=cpu_mkl*                     # [cuda_compiler_version == "none" and ((linux or win) and x86_64)]
-    - libtorch 2.14.0=gpu_cuda129*                 # [cuda_compiler_version == "12.9"]
-    - libtorch 2.14.0=gpu_cuda130*                 # [cuda_compiler_version == "13.0"]
+    # pytorch on pkgs/main ships gpu_cuda129_*/gpu_cuda130_* for linux-64; cpu_mkl is
+    # x86_64-only, so osx-arm64, linux-aarch64 and win-arm64 use cpu_openblas.
+    - pytorch {{ torch_version }}.* cpu_openblas*    # [cuda_compiler_version == "none" and not ((linux or win) and x86_64)]
+    - pytorch {{ torch_version }}.* cpu_mkl*         # [cuda_compiler_version == "none" and ((linux or win) and x86_64)]
+    - pytorch {{ torch_version }}.* gpu_cuda129*     # [cuda_compiler_version == "12.9"]
+    - pytorch {{ torch_version }}.* gpu_cuda130*     # [cuda_compiler_version == "13.0"]
+    - libtorch {{ torch_version }}.* cpu_openblas*   # [cuda_compiler_version == "none" and not ((linux or win) and x86_64)]
+    - libtorch {{ torch_version }}.* cpu_mkl*        # [cuda_compiler_version == "none" and ((linux or win) and x86_64)]
+    - libtorch {{ torch_version }}.* gpu_cuda129*    # [cuda_compiler_version == "12.9"]
+    - libtorch {{ torch_version }}.* gpu_cuda130*    # [cuda_compiler_version == "13.0"]
     # CUDA development headers (linking only; runtime libraries come via pytorch run_exports).
     # cuda-version pins all CUDA packages (incl. cuda-cccl) to the exact compiler sub-version;
     # without it cuda-cccl can resolve to a different 13.x sub-version than nvcc, breaking builds.
@@ -85,11 +90,11 @@ requirements:
 
   run:
     - python
-    # Built against pytorch 2.14.0; pin >=2.14.0 to enforce the compiled ABI.
-    - pytorch >=2.14.0=cpu_openblas*               # [cuda_compiler_version == "none" and (osx or (linux and aarch64))]
-    - pytorch >=2.14.0=cpu_mkl*                    # [cuda_compiler_version == "none" and ((linux or win) and x86_64)]
-    - pytorch >=2.14.0=gpu_cuda129*                # [cuda_compiler_version == "12.9"]
-    - pytorch >=2.14.0=gpu_cuda130*                # [cuda_compiler_version == "13.0"]
+    # Pin >= the pytorch we build against to enforce the compiled ABI.
+    - pytorch >={{ torch_version }}.0=cpu_openblas*  # [cuda_compiler_version == "none" and not ((linux or win) and x86_64)]
+    - pytorch >={{ torch_version }}.0=cpu_mkl*       # [cuda_compiler_version == "none" and ((linux or win) and x86_64)]
+    - pytorch >={{ torch_version }}.0=gpu_cuda129*   # [cuda_compiler_version == "12.9"]
+    - pytorch >={{ torch_version }}.0=gpu_cuda130*   # [cuda_compiler_version == "13.0"]
     - __cuda                                       # [cuda_compiler_version != "none"]
 
 test:
@@ -100,6 +105,8 @@ test:
     - torchao.quantization
   commands:
     - pip check
+    # torchao only warns when a compiled extension fails to load; fail the test instead.
+    - python -c "import pathlib, torch, torchao; so = list(pathlib.Path(torchao.__file__).parent.glob('_C*.so')); assert so, 'no _C extension'; [torch.ops.load_library(str(f)) for f in so]"  # [cuda_compiler_version != "none"]
 
 about:
   home: https://github.com/pytorch/ao
