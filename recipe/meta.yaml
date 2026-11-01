@@ -7,6 +7,14 @@
 {% set torch_version = "2.15" %}
 # CUTLASS (header-only) from pkgs/main; upstream's third_party/cutlass submodule is v4.1.0.
 {% set cutlass_version = "4.8.0" %}
+# CUDA variants carry +100 so they sort above the CPU build of the same version.
+# Selector-gated sets, not duplicate number/string keys or Jinja if-blocks: anaconda-linter
+# warns on duplicate keys and cannot parse if-blocks.
+{% set build_number = 2 %}
+{% set build_number = build_number + 100 %}  # [gpu_variant == "cuda"]
+{% set variant_tag = "cpu" %}
+{% set variant_tag = "cuda129" %}  # [gpu_variant == "cuda" and cuda_compiler_version == "12.9"]
+{% set variant_tag = "cuda130" %}  # [gpu_variant == "cuda" and cuda_compiler_version == "13.0"]
 
 package:
   name: {{ name }}
@@ -23,9 +31,7 @@ source:
     folder: third_party/cutlass
 
 build:
-  # CUDA variants carry +100 so they sort above the CPU build of the same version.
-  number: 2    # [gpu_variant != "cuda"]
-  number: 102  # [gpu_variant == "cuda"]
+  number: {{ build_number }}
   # CUDA variant: linux only (pytorch ships CUDA builds for linux-64 and linux-aarch64).
   # CPU variant: linux-64, linux-aarch64, osx-arm64, win-64, win-arm64.
   # Python 3.11 minimum: pytorch 2.15 requires python >=3.11 (no py3.10 builds on
@@ -35,8 +41,7 @@ build:
   # (.pyc bytecode tagged cpXY) but a manual `string:` overrides conda-build's default
   # py-prefix. Without it all 5 Python builds collapse to one filename per variant and
   # collide on upload — only py3.14 survived in build 1 (PKG-14920).
-  string: cpu_py{{ CONDA_PY }}h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}                                           # [gpu_variant != "cuda"]
-  string: cuda{{ cuda_compiler_version | replace(".", "") }}_py{{ CONDA_PY }}h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}  # [gpu_variant == "cuda"]
+  string: {{ variant_tag }}_py{{ CONDA_PY }}h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}
   script_env:
     - gpu_variant={{ gpu_variant }}
     - cuda_compiler_version={{ cuda_compiler_version }}   # [gpu_variant == "cuda"]
@@ -138,7 +143,7 @@ about:
   license_family: BSD
   license_file:
     - LICENSE
-    - third_party/cutlass/cutlass-LICENSE.txt
+    - third_party/cutlass/cutlass-LICENSE.txt  # [gpu_variant == "cuda"]
   doc_url: https://docs.pytorch.org/ao/stable/index.html
   dev_url: https://github.com/pytorch/ao
 
