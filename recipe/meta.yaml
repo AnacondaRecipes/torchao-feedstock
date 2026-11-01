@@ -25,11 +25,11 @@ build:
   # CUDA variants carry +100 so they sort above the CPU build of the same version.
   number: 2    # [gpu_variant != "cuda"]
   number: 102  # [gpu_variant == "cuda"]
-  # CUDA variant: linux-64 only (matches pytorch's CUDA Linux x86_64 support).
+  # CUDA variant: linux only (pytorch ships CUDA builds for linux-64 and linux-aarch64).
   # CPU variant: linux-64, linux-aarch64, osx-arm64, win-64, win-arm64.
   # Python 3.11 minimum: pytorch 2.15 requires python >=3.11 (no py3.10 builds on
   # pkgs/main); torchao itself is py_limited_api cp310.
-  skip: true  # [py<311 or (gpu_variant == "cuda" and not (linux and x86_64))]
+  skip: true  # [py<311 or (gpu_variant == "cuda" and not linux)]
   # py{{ CONDA_PY }} MUST be in the build string: the package is python-version-specific
   # (.pyc bytecode tagged cpXY) but a manual `string:` overrides conda-build's default
   # py-prefix. Without it all 5 Python builds collapse to one filename per variant and
@@ -72,8 +72,9 @@ requirements:
     - wheel
     # torchao imports torch at setup.py top level; torch must be present and the
     # build string must match the variant we compile against to avoid ABI mismatch.
-    # pytorch on pkgs/main ships gpu_cuda129_*/gpu_cuda130_* for linux-64; cpu_mkl is
-    # x86_64-only, so osx-arm64, linux-aarch64 and win-arm64 use cpu_openblas.
+    # pytorch on pkgs/main ships gpu_cuda129_*/gpu_cuda130_* for linux-64 and
+    # gpu_cuda130_* for linux-aarch64; cpu_mkl is x86_64-only, so osx-arm64,
+    # linux-aarch64 and win-arm64 CPU builds use cpu_openblas.
     - pytorch {{ torch_version }}.* cpu_openblas*    # [gpu_variant != "cuda" and not ((linux or win) and x86_64)]
     - pytorch {{ torch_version }}.* cpu_mkl*         # [gpu_variant != "cuda" and ((linux or win) and x86_64)]
     - pytorch {{ torch_version }}.* gpu_cuda129*     # [gpu_variant == "cuda" and cuda_compiler_version == "12.9"]

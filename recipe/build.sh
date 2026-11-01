@@ -18,7 +18,11 @@ if [ "${gpu_variant}" = "cuda" ]; then
     export USE_CPP=1
 
     # Match pytorch-feedstock's CUDA arch list for ABI alignment with pkgs/main libtorch.
-    export TORCH_CUDA_ARCH_LIST="7.5;8.0;8.6;9.0;10.0;12.0+PTX"
+    if [[ "${target_platform}" == "linux-aarch64" ]]; then
+        export TORCH_CUDA_ARCH_LIST="8.0;9.0;10.0;11.0;12.0;12.1+PTX"
+    else
+        export TORCH_CUDA_ARCH_LIST="7.5;8.0;8.6;9.0;10.0;12.0+PTX"
+    fi
 
     # CUDA 12.x requires gcc <14.0 per torch/utils/cpp_extension.py CUDA_GCC_VERSIONS,
     # but the CUDA 12.9 pytorch on pkgs/main is built with gcc 14 too. Bypass the

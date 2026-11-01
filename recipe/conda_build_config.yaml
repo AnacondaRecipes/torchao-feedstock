@@ -1,7 +1,8 @@
 # gpu_variant is zipped with cuda_compiler_version (xformers-feedstock pattern):
-# linux-64 gets [none, cuda/12.9, cuda/13.0]; every other platform gets [none].
-# pytorch on pkgs/main ships gpu_cuda129_* and gpu_cuda130_* for linux-64;
-# torchao must link against the same CUDA runtime.
+# linux-64 gets [none, cuda/12.9, cuda/13.0], linux-aarch64 gets [none, cuda/13.0],
+# every other platform gets [none]. torchao must link against the same CUDA
+# runtime as pytorch, which ships gpu_cuda129_*/gpu_cuda130_* for linux-64 and
+# only gpu_cuda130_* for linux-aarch64 on pkgs/main.
 #
 # `none` is deliberately UN-gated: the aggregate CBC sets cuda_compiler_version
 # for linux and win, and per-key REPLACEMENT semantics mean this list must cover
@@ -9,14 +10,14 @@
 gpu_variant:
   - none
   - cuda                       # [linux and x86_64]
-  - cuda                       # [linux and x86_64]
+  - cuda                       # [linux]
 
 cuda_compiler_version:
   - none
   - 12.9                       # [linux and x86_64]
-  - 13.0                       # [linux and x86_64]
+  - 13.0                       # [linux]
 
-zip_keys:                      # [linux and x86_64]
-  -                            # [linux and x86_64]
-    - gpu_variant              # [linux and x86_64]
-    - cuda_compiler_version    # [linux and x86_64]
+zip_keys:                      # [linux]
+  -                            # [linux]
+    - gpu_variant              # [linux]
+    - cuda_compiler_version    # [linux]
