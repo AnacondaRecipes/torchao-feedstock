@@ -6,6 +6,10 @@ set -euxo pipefail
 # Setting VERSION_SUFFIX="" keeps the version as "${PKG_VERSION}" exactly.
 export VERSION_SUFFIX=""
 
+# CUTLASS comes from the conda package, not the git submodule: skip setup.py's
+# check_submodules() (USE_SYSTEM_LIBS has no other effect in setup.py).
+export USE_SYSTEM_LIBS=1
+
 # Disable macOS/ARM experimental cmake-based CPU kernels for now.
 # build_macos_arm_auto = (USE_CPP=1 and is_arm64 and is_macos) would otherwise
 # trigger cmake-based TORCHAO_BUILD_CPU_AARCH64, which is not yet tested.
@@ -17,7 +21,14 @@ if [ "${gpu_variant}" = "cuda" ]; then
     # enables them from the nvcc version (SM90a: CUDA >=12.6, SM100a: CUDA >=12.8).
     export USE_CPP=1
 
-    # Match pytorch-feedstock's CUDA arch list for ABI alignment with pkgs/main libtorch.
+    # setup.py hardcodes -I third_party/cutlass/{include,tools/util/include}; the
+    # conda cutlass package installs both header trees under $PREFIX/include.
+    mkdir -p third_party/cutlass/tools/util
+    ln -s "${PREFIX}/include" third_party/cutlass/include
+    ln -s "${PREFIX}/include" third_party/cutlass/tools/util/include
+
+    # Unused by torchao 0.18 (both extensions pass their own -gencode); kept so a future
+    # extension without one doesn't build only for the CI GPU. Matches pytorch-feedstock.
     if [[ "${target_platform}" == "linux-aarch64" ]]; then
         export TORCH_CUDA_ARCH_LIST="8.0;9.0;10.0;11.0;12.0;12.1+PTX"
     else

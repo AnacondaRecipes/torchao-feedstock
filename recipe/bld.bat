@@ -1,6 +1,8 @@
 @rem CPU-only Windows build: pure Python mode, no C++ compilation.
 SET USE_CPP=0
 SET BUILD_TORCHAO_EXPERIMENTAL=0
+@rem CPU builds need no CUTLASS: skip setup.py's git-submodule check.
+SET USE_SYSTEM_LIBS=1
 
 @rem setup.py appends a "+git" suffix when VERSION_SUFFIX is unset, and cmd's
 @rem "SET VERSION_SUFFIX=" unsets it. Launch pip from Python with an empty value.
