@@ -7,6 +7,9 @@
 {% set torch_version = "2.15" %}
 # CUTLASS (header-only) from pkgs/main; upstream's third_party/cutlass submodule is v4.1.0.
 {% set cutlass_version = "4.8.0" %}
+# Apache-2.0 text for code adapted from NVIDIA TransformerEngine (mx_kernels, compiled into
+# _C_mxfp8), QuaRot (prototype/spinquant) and HF transformers (prototype/paretoq).
+{% set te_version = "2.20.2" %}
 # CUDA variants carry +100 so they sort above the CPU build of the same version.
 # Selector-gated sets, not duplicate number/string keys or Jinja if-blocks: anaconda-linter
 # warns on duplicate keys and cannot parse if-blocks.
@@ -29,6 +32,10 @@ source:
     sha256: ad1513ca983da737a6843364ad19e8424a56d860736c2da773b8c5be527e1475
     fn: cutlass-LICENSE.txt
     folder: third_party/cutlass
+  - url: https://raw.githubusercontent.com/NVIDIA/TransformerEngine/v{{ te_version }}/LICENSE
+    sha256: bea1b4266f1499fa4bbb16d6e7577e6b5b53d1ef010835a9d460876022cc8722
+    fn: Apache-2.0-LICENSE.txt
+    folder: third_party/licenses
 
 build:
   number: {{ build_number }}
@@ -139,11 +146,12 @@ about:
     optimizer support, and works out-of-the-box with torch.compile() and FSDP2.
     TorchAO is the official PyTorch quantization backend for vLLM, HuggingFace
     Transformers, and TorchTune.
-  license: BSD-3-Clause
-  license_family: BSD
+  license: BSD-3-Clause AND Apache-2.0
+  license_family: Other
   license_file:
     - LICENSE
     - third_party/cutlass/cutlass-LICENSE.txt  # [gpu_variant == "cuda"]
+    - third_party/licenses/Apache-2.0-LICENSE.txt
   doc_url: https://docs.pytorch.org/ao/stable/index.html
   dev_url: https://github.com/pytorch/ao
 
