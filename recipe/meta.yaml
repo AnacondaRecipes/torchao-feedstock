@@ -36,6 +36,13 @@ source:
     sha256: bea1b4266f1499fa4bbb16d6e7577e6b5b53d1ef010835a9d460876022cc8722
     fn: Apache-2.0-LICENSE.txt
     folder: third_party/licenses
+  # MIT text for prototype/common/triton/matmul_perf_model.py (copied from triton-lang/kernels)
+  # and prototype/awq/example.py (adapted from mit-han-lab/llm-awq). Pinned to the commit that
+  # added the triton-lang/kernels license (the repo has no tags).
+  - url: https://raw.githubusercontent.com/triton-lang/kernels/ddb6edadd63cd1b796e65f4f98a969b96f4f4f7d/LICENSE
+    sha256: d56b269564c3b0ab9218cdc6325fc6c8de256a810aabaa249be592fc1c4bbf1c
+    fn: MIT-LICENSE.txt
+    folder: third_party/licenses
 
 build:
   number: {{ build_number }}
@@ -146,12 +153,13 @@ about:
     optimizer support, and works out-of-the-box with torch.compile() and FSDP2.
     TorchAO is the official PyTorch quantization backend for vLLM, HuggingFace
     Transformers, and TorchTune.
-  license: BSD-3-Clause AND Apache-2.0
+  license: BSD-3-Clause AND Apache-2.0 AND MIT
   license_family: Other
   license_file:
     - LICENSE
     - third_party/cutlass/cutlass-LICENSE.txt  # [gpu_variant == "cuda"]
     - third_party/licenses/Apache-2.0-LICENSE.txt
+    - third_party/licenses/MIT-LICENSE.txt
   doc_url: https://docs.pytorch.org/ao/stable/index.html
   dev_url: https://github.com/pytorch/ao
 
